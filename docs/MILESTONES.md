@@ -26,26 +26,29 @@ Status: IMPLEMENTED, automated verification complete; Electron launch blocked by
 Runtime note: this development host is Windows 11 build 26200. Electron and an isolated minimal Electron app both terminate with a native `electron.exe` application error before Jarvis code runs. The main process includes the documented GPU compatibility switches and a `did-finish-load` visibility fallback, but a live Electron window still requires a host update/repair or a machine without this Windows 25H2 regression. `OPENAI_API_KEY` was not configured, so live API streaming also remains unverified.
 
 ## M2 - Voice
-Status: IN PROGRESS — completed-recording vertical slice implemented; realtime and wake-word work remain
+Status: IN PROGRESS — realtime foundation implemented; live provider/Electron verification remains
 
 - [x] Audio device enumeration with deliberate browser permission request.
 - [x] Push-to-talk recording using the selected microphone.
-- [ ] Realtime speech transport.
+- [x] Realtime transcription transport over browser WebRTC with short-lived main-process session secrets.
+- [x] Server VAD speech start/stop events and partial transcript drafts.
+- [x] Final-transcript deduplication and session/request stale-event protection.
 - [x] Completed-recording transcription through the trusted main process.
 - [x] Visible transcription through the existing user-message/orchestrator path.
 - [x] Speech output through the trusted main process and renderer playback.
 - [x] Manual interruption: STOP cancels every active stage and MIC interrupts playback.
-- [ ] Local wake-word abstraction and initial implementation.
+- [x] Wake-word detector interface with an explicit no-op implementation.
+- [x] Normalized/smoothed audio-feature foundation (`rms`, `low`, `mid`, `high`).
 
-The current slice uses turn-based file transcription and TTS because it is the smallest complete voice path. It does not claim realtime streaming, wake-word activation, persistence, or audio-reactive hologram behavior. Live provider verification remains dependent on a configured `OPENAI_API_KEY` and a host where Electron launches successfully.
+The current slice keeps turn-based file transcription and TTS as a fallback. Realtime mode is transcription-only and continues through the existing orchestrator; it does not create a second answering agent. Production wake-word activation, a Three.js hologram, and live provider verification remain outstanding. Live provider verification remains dependent on a configured `OPENAI_API_KEY` and a host where Electron launches successfully.
 
 ## M3 - Procedural hologram
-Status: NOT STARTED
+Status: FOUNDATION ONLY
 
 - [ ] React Three Fiber scene.
 - [ ] Idle/listening/thinking/speaking states.
-- [ ] Audio feature extraction.
-- [ ] Smoothed audio-reactive deformation.
+- [x] Audio feature extraction foundation (voice package + browser analyser).
+- [x] Smoothed audio feature foundation.
 - [ ] Performance fallback mode.
 
 ## M4 - Dual-agent router

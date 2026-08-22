@@ -1,7 +1,17 @@
 import OpenAI, { toFile } from "openai";
-import type { SpeechAudio, SpeechSynthesisProvider, AudioRecording, TranscriptionProvider, TranscriptionResult } from "@jarvis/voice";
+import type {
+  AudioRecording,
+  RealtimeSessionProvider,
+  RealtimeSessionRequest,
+  RealtimeSessionToken,
+  SpeechAudio,
+  SpeechSynthesisProvider,
+  TranscriptionProvider,
+  TranscriptionResult,
+} from "@jarvis/voice";
 
 const DEFAULT_TRANSCRIPTION_MODEL = "gpt-transcribe";
+const DEFAULT_REALTIME_TRANSCRIPTION_MODEL = "gpt-live-transcribe";
 const DEFAULT_SPEECH_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_VOICE = "marin";
 const MAX_SPEECH_INPUT_LENGTH = 4096;
@@ -16,6 +26,12 @@ export interface OpenAISpeechOptions {
   apiKey?: string;
   model?: string;
   voice?: string;
+  client?: OpenAI;
+}
+
+export interface OpenAIRealtimeSessionOptions {
+  apiKey?: string;
+  model?: string;
   client?: OpenAI;
 }
 
@@ -86,6 +102,52 @@ export class OpenAISpeechSynthesisProvider implements SpeechSynthesisProvider {
     return {
       data: new Uint8Array(await response.arrayBuffer()),
       mimeType: "audio/mpeg",
+    };
+  }
+}
+
+export class OpenAIRealtimeSessionProvider implements RealtimeSessionProvider {
+  private readonly client: OpenAI;
+  private readonly model: string;
+
+  constructor(options: OpenAIRealtimeSessionOptions) {
+    this.client = createClient(options.apiKey, options.client);
+    this.model = options.model || DEFAULT_REALTIME_TRANSCRIPTION_MODEL;
+  }
+
+  async createSession(
+    _request: RealtimeSessionRequest,
+    options?: { signal?: AbortSignal },
+  ): Promise<RealtimeSessionToken> {
+    const response = await this.client.realtime.clientSecrets.create(
+      {
+        expires_after: { anchor: "created_at", seconds: 600 },
+        session: {
+          type: "transcription",
+          audio: {
+            input: {
+              format: { type: "audio/pcm", rate: 24000 },
+              transcription: {
+                model: this.model,
+                delay: "low",
+              },
+              turn_detection: {
+                type: "server_vad",
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 500,
+              },
+            },
+          },
+        },
+      },
+      { signal: options?.signal },
+    );
+
+    return {
+      value: response.value,
+      expiresAt: response.expires_at,
+      model: this.model,
     };
   }
 }

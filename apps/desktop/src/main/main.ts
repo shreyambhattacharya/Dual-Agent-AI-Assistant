@@ -11,6 +11,7 @@ import {
 } from "@jarvis/core";
 import {
   OpenAIChatAgent,
+  OpenAIRealtimeSessionProvider,
   OpenAISpeechSynthesisProvider,
   OpenAITranscriptionProvider,
   UnavailableAgent,
@@ -21,11 +22,14 @@ import type {
   VoiceSynthesisResponse,
   VoiceTranscriptionRequest,
   VoiceTranscriptionResponse,
+  RealtimeSessionRequest,
+  RealtimeSessionToken,
 } from "@jarvis/voice";
 import { normalizeVoiceError } from "@jarvis/voice";
 
 const activeRequests = new Map<string, AbortController>();
 const activeVoiceRequests = new Map<string, AbortController>();
+const activeRealtimeSessions = new Map<string, AbortController>();
 const MAX_VOICE_INPUT_BYTES = 10_000_000;
 const MAX_VOICE_OUTPUT_BYTES = 10_000_000;
 const MAX_VOICE_TEXT_LENGTH = 4_096;
@@ -55,6 +59,7 @@ const modelConfig: ModelConfig = {
   conversation_fast: process.env.JARVIS_MODEL_CONVERSATION_FAST || "AUTO",
   reasoning: process.env.JARVIS_MODEL_REASONING || "AUTO",
   realtime_voice: process.env.JARVIS_MODEL_REALTIME_VOICE || "AUTO",
+  realtime_transcription: process.env.JARVIS_MODEL_REALTIME_TRANSCRIPTION || "AUTO",
   speech_to_text: process.env.JARVIS_MODEL_SPEECH_TO_TEXT || "AUTO",
   text_to_speech: process.env.JARVIS_MODEL_TEXT_TO_SPEECH || "AUTO",
   coding: process.env.JARVIS_MODEL_CODING || "AUTO",
@@ -74,6 +79,12 @@ const speechSynthesisProvider = openAiApiKey
       apiKey: openAiApiKey,
       model: modelSelector.selectTextToSpeech().model,
       voice: process.env.JARVIS_TTS_VOICE || "marin",
+    })
+  : undefined;
+const realtimeSessionProvider = openAiApiKey
+  ? new OpenAIRealtimeSessionProvider({
+      apiKey: openAiApiKey,
+      model: modelSelector.selectRealtimeTranscription().model,
     })
   : undefined;
 
@@ -191,6 +202,44 @@ app.whenReady().then(() => {
   ipcMain.handle("jarvis:chat:cancel", async (_event, requestId: unknown) => {
     if (typeof requestId !== "string") return false;
     const controller = activeRequests.get(requestId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
+  });
+
+  ipcMain.handle(
+    "jarvis:voice:realtime:create-session",
+    async (_event, payload: unknown): Promise<VoiceOperationResult<RealtimeSessionToken>> => {
+      if (!isRealtimeSessionRequest(payload)) {
+        return voiceFailure("INVALID_VOICE_REQUEST", "Invalid realtime voice session request.", false);
+      }
+      if (activeRealtimeSessions.has(payload.sessionId)) {
+        return voiceFailure("INVALID_VOICE_REQUEST", "Duplicate realtime voice session identifier.", false);
+      }
+      if (!realtimeSessionProvider) {
+        return voiceFailure(
+          "REALTIME_UNAVAILABLE",
+          "Realtime voice is offline because OPENAI_API_KEY is not configured in the trusted desktop process.",
+          false,
+        );
+      }
+
+      const controller = new AbortController();
+      activeRealtimeSessions.set(payload.sessionId, controller);
+      try {
+        const token = await realtimeSessionProvider.createSession(payload, { signal: controller.signal });
+        return { ok: true, value: token };
+      } catch (error) {
+        return { ok: false, error: normalizeVoiceError(error, "REALTIME_SESSION_FAILED") };
+      } finally {
+        activeRealtimeSessions.delete(payload.sessionId);
+      }
+    },
+  );
+
+  ipcMain.handle("jarvis:voice:realtime:cancel", async (_event, sessionId: unknown) => {
+    if (typeof sessionId !== "string") return false;
+    const controller = activeRealtimeSessions.get(sessionId);
     if (!controller) return false;
     controller.abort();
     return true;
@@ -316,6 +365,12 @@ function voiceFailure<T>(
 
 function isVoiceSessionId(value: unknown): value is string {
   return typeof value === "string" && value.length >= 8 && value.length <= 128;
+}
+
+function isRealtimeSessionRequest(value: unknown): value is RealtimeSessionRequest {
+  if (!value || typeof value !== "object") return false;
+  const payload = value as Record<string, unknown>;
+  return isVoiceSessionId(payload.sessionId);
 }
 
 function isAudioMimeType(value: unknown): value is string {

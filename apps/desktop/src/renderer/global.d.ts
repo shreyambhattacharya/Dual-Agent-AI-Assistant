@@ -5,6 +5,8 @@ import type {
   VoiceSynthesisResponse,
   VoiceTranscriptionRequest,
   VoiceTranscriptionResponse,
+  RealtimeSessionRequest,
+  RealtimeSessionToken,
 } from "@jarvis/voice";
 
 declare global {
@@ -20,6 +22,12 @@ declare global {
           request: VoiceSynthesisRequest,
         ): Promise<VoiceOperationResult<VoiceSynthesisResponse>>;
         cancel(sessionId: string): Promise<boolean>;
+        realtime: {
+          createSession(
+            request: RealtimeSessionRequest,
+          ): Promise<VoiceOperationResult<RealtimeSessionToken>>;
+          cancel(sessionId: string): Promise<boolean>;
+        };
       };
       onEvent(callback: (payload: { requestId: string; event: OrchestratorEvent }) => void): () => void;
     };

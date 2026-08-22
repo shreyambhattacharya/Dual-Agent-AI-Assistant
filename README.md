@@ -9,9 +9,9 @@ The orchestration layer chooses the appropriate agent unless the user explicitly
 
 ## Current status
 
-This repository has the M0/M1 foundation plus the first M2 voice vertical slice. The architecture, core routing domain, model-selection layer, project alias resolver, Electron security boundary, typed ChatGPT streaming path, microphone selection, push-to-talk recording, file transcription, and TTS playback are implemented.
+This repository has the M0/M1 foundation plus the M2 voice vertical slice and realtime voice foundation. The architecture, core routing domain, model-selection layer, project alias resolver, Electron security boundary, typed ChatGPT streaming path, microphone selection, push-to-talk recording, realtime transcription over browser WebRTC, server VAD, partial transcript drafts, barge-in cancellation, file transcription fallback, and TTS playback are implemented.
 
-Codex routing is recognized now, but the Codex SDK adapter is intentionally not connected until the dedicated Codex milestone. Realtime voice streaming, wake-word detection, SQLite memory, project persistence, tool execution, and the final React Three Fiber hologram remain staged rather than being mocked as complete.
+Codex routing is recognized now, but the Codex SDK adapter is intentionally not connected until the dedicated Codex milestone. Production wake-word detection, SQLite memory, project persistence, tool execution, and the final React Three Fiber hologram remain staged rather than being mocked as complete. A no-op wake-word interface and audio-feature foundation are present so those modules can be replaced later.
 
 See [`docs/MILESTONES.md`](docs/MILESTONES.md) for exact status. The full authoritative product brief is preserved in [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md).
 
@@ -23,6 +23,11 @@ Renderer (React)
       │ narrow typed IPC
       ▼
 Electron main process
+      │
+      ├────────► Ephemeral realtime session provider
+      │                         │
+      │                         └──► OpenAI Realtime transcription over browser WebRTC
+      │                                (renderer holds only a short-lived client secret)
       │
       ├────────► Speech-to-text provider
       ├────────► Text-to-speech provider
@@ -49,7 +54,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/ADR-001-desktop-ru
 - **UI:** React + TypeScript + Vite
 - **Core orchestration:** framework-independent TypeScript
 - **ChatGPT API:** OpenAI Responses API with streaming
-- **Voice input/output:** browser MediaRecorder plus main-process OpenAI file transcription and TTS
+- **Voice input/output:** browser WebRTC to an OpenAI Realtime transcription session, with MediaRecorder/file transcription and TTS fallback
 - **Codex:** `@openai/codex-sdk` planned for the Codex milestone
 - **3D UI:** React Three Fiber / Three.js planned for the hologram milestone
 - **Persistence:** SQLite planned for structured local state
@@ -66,6 +71,7 @@ With `AUTO`, the current resolver uses:
 - balanced reasoning → `gpt-5.6-terra`
 - deep reasoning → `gpt-5.6-sol`
 - realtime voice → `gpt-realtime-2.1` when the voice adapter is implemented
+- realtime transcription → `gpt-live-transcribe` with server VAD
 - speech-to-text → `gpt-transcribe`
 - text-to-speech → `gpt-4o-mini-tts`
 
@@ -194,6 +200,17 @@ microphone selection → MediaRecorder → typed voice IPC → gpt-transcribe
 
 The transcript is submitted through the same router as typed text and is rendered as one user message. Pressing MIC while speech is playing stops playback and starts a new recording; STOP cancels capture, provider calls, chat, or playback as applicable.
 
+Realtime mode is opt-in from the voice-mode selector:
+
+```text
+trusted main process → short-lived client secret
+→ renderer WebRTC microphone track → OpenAI Realtime transcription session
+→ VAD speech_started / speech_stopped + transcript deltas
+→ draft transcript → one final transcript → existing startChat/orchestrator path
+```
+
+The Realtime session is transcription-only; it never answers independently. Partial text is a draft, final text is submitted once per provider item, and `speech_started` interrupts active chat cancellation, TTS cancellation, and local playback. If negotiation or the connection fails, the UI returns to push-to-talk. The transport decision and security implications are recorded in [`docs/ADR-002-realtime-voice-transport.md`](docs/ADR-002-realtime-voice-transport.md).
+
 ## Next milestone
 
-The next implementation step is to verify the live ChatGPT and voice paths in a network-enabled development environment. Realtime speech transport and wake-word abstraction can then extend the voice slice without changing the orchestrator contract, followed by the procedural hologram and Codex SDK integration.
+The next implementation step is live verification of the ChatGPT and realtime voice paths in a network-enabled environment where Electron launches successfully, followed by the procedural hologram and Codex SDK integration.

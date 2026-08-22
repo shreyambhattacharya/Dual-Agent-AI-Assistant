@@ -6,6 +6,7 @@ const config = {
   conversation_fast: "AUTO",
   reasoning: "AUTO",
   realtime_voice: "AUTO",
+  realtime_transcription: "AUTO",
   speech_to_text: "AUTO",
   text_to_speech: "AUTO",
   coding: "AUTO",
@@ -37,6 +38,7 @@ test("explicit configuration overrides AUTO", () => {
 });
 
 test("voice model slots resolve independently", () => {
+  assert.equal(selector.selectRealtimeTranscription().model, "gpt-live-transcribe");
   assert.equal(selector.selectSpeechToText().model, "gpt-transcribe");
   assert.equal(selector.selectTextToSpeech().model, "gpt-4o-mini-tts");
 });

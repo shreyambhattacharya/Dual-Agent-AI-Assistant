@@ -1,10 +1,20 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentId, AppState, OrchestratorEvent } from "@jarvis/core";
-import { selectAudioInputDevice } from "@jarvis/voice";
-import type { AudioInputDevice } from "@jarvis/voice";
+import {
+  applyRealtimeTranscriptEvent,
+  createRealtimeTranscriptState,
+  selectAudioInputDevice,
+} from "@jarvis/voice";
+import type {
+  AudioFeatures,
+  AudioInputDevice,
+  RealtimeVoiceEvent,
+  RealtimeVoiceMode,
+} from "@jarvis/voice";
 import { HoloCore } from "./components/HoloCore";
 import { BrowserVoiceCapture, enumerateAudioInputDevices, VoiceClientError } from "./voice/capture";
 import { BrowserAudioPlayback } from "./voice/playback";
+import { BrowserRealtimeVoiceSession } from "./voice/realtime-session";
 
 type Message = {
   id: string;
@@ -31,6 +41,10 @@ export function App() {
   const [voiceDevices, setVoiceDevices] = useState<AudioInputDevice[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceMode, setVoiceMode] = useState<RealtimeVoiceMode>("PUSH_TO_TALK");
+  const [realtimeState, setRealtimeState] = useState("DISCONNECTED");
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [audioFeatures, setAudioFeatures] = useState<AudioFeatures>({ rms: 0, low: 0, mid: 0, high: 0 });
   const [, setVoiceSessionId] = useState<string | null>(null);
   const responseIdRef = useRef<string | null>(null);
   const responseTextRef = useRef("");
@@ -39,9 +53,13 @@ export function App() {
   const voicePlaybackActiveRef = useRef(false);
   const captureRef = useRef<BrowserVoiceCapture | null>(null);
   const playbackRef = useRef<BrowserAudioPlayback | null>(null);
+  const realtimeRef = useRef<BrowserRealtimeVoiceSession | null>(null);
+  const realtimeTranscriptRef = useRef(createRealtimeTranscriptState());
+  const voiceModeRef = useRef<RealtimeVoiceMode>("PUSH_TO_TALK");
 
   if (!captureRef.current) captureRef.current = new BrowserVoiceCapture();
   if (!playbackRef.current) playbackRef.current = new BrowserAudioPlayback();
+  if (!realtimeRef.current) realtimeRef.current = new BrowserRealtimeVoiceSession();
 
   function setActiveRequest(requestId: string | null) {
     activeRequestIdRef.current = requestId;
@@ -60,14 +78,17 @@ export function App() {
   useEffect(() => {
     const removeListener = window.jarvis.onEvent(({ requestId, event }) => {
       const activeRequest = activeRequestIdRef.current;
-      if (activeRequest && requestId !== activeRequest) return;
+      if (!activeRequest || requestId !== activeRequest) return;
       applyEvent(event);
     });
+    const removeRealtimeListener = realtimeRef.current?.onEvent(handleRealtimeEvent);
 
     return () => {
       removeListener();
+      removeRealtimeListener?.();
       captureRef.current?.cancel();
       playbackRef.current?.stop();
+      void realtimeRef.current?.cancel();
     };
   }, []);
 
@@ -128,6 +149,77 @@ export function App() {
     }
   }
 
+  function interruptAssistantForBargeIn() {
+    playbackRef.current?.stop();
+    voicePlaybackActiveRef.current = false;
+    const voiceSessionId = voiceSessionIdRef.current;
+    const requestId = activeRequestIdRef.current;
+    setVoiceSession(null);
+    setActiveRequest(null);
+    responseIdRef.current = null;
+    responseTextRef.current = "";
+    if (voiceSessionId) void window.jarvis.voice.cancel(voiceSessionId);
+    if (requestId) void window.jarvis.cancelChat(requestId);
+  }
+
+  function handleRealtimeEvent(event: RealtimeVoiceEvent) {
+    if (event.type === "connected") {
+      realtimeTranscriptRef.current = createRealtimeTranscriptState(event.sessionId);
+      setLiveTranscript("");
+      setRealtimeState("LISTENING");
+      if (!activeRequestIdRef.current && !voicePlaybackActiveRef.current) setState("LISTENING");
+      return;
+    }
+
+    if (event.type === "speech_started") {
+      setRealtimeState("LISTENING");
+      if (activeRequestIdRef.current || voicePlaybackActiveRef.current) interruptAssistantForBargeIn();
+      setState("LISTENING");
+      return;
+    }
+
+    if (event.type === "speech_stopped") {
+      setRealtimeState("FINALIZING");
+      if (!activeRequestIdRef.current) setState("TRANSCRIBING");
+      return;
+    }
+
+    if (event.type === "audio_level") {
+      setAudioFeatures(event.features);
+      return;
+    }
+
+    if (event.type === "transcript_partial" || event.type === "transcript_final") {
+      const update = applyRealtimeTranscriptEvent(realtimeTranscriptRef.current, event);
+      realtimeTranscriptRef.current = update.state;
+      if (update.partialText !== undefined) setLiveTranscript(update.partialText);
+      if (update.finalText !== undefined) {
+        setLiveTranscript("");
+        setRealtimeState("LISTENING");
+        if (update.finalText) void submitText(update.finalText, event.sessionId);
+      }
+      return;
+    }
+
+    if (event.type === "error") {
+      setVoiceError(event.message);
+      addSystemMessage(event.message);
+      setRealtimeState("ERROR");
+      return;
+    }
+
+    if (event.type === "disconnected") {
+      setRealtimeState("DISCONNECTED");
+      setLiveTranscript("");
+      if (voiceModeRef.current === "REALTIME") {
+        voiceModeRef.current = "PUSH_TO_TALK";
+        setVoiceMode("PUSH_TO_TALK");
+        setState("IDLE");
+        setVoiceError(event.reason === "cancelled" ? null : "Realtime voice disconnected; push-to-talk is available.");
+      }
+    }
+  }
+
   async function submitText(text: string, sourceVoiceSessionId?: string): Promise<boolean> {
     const normalizedText = text.trim();
     if (!normalizedText || activeRequestIdRef.current) return false;
@@ -176,6 +268,7 @@ export function App() {
   }
 
   async function beginVoiceCapture() {
+    if (voiceModeRef.current === "REALTIME") return;
     if (activeRequestIdRef.current && !voicePlaybackActiveRef.current) return;
     setVoiceError(null);
     playbackRef.current?.stop();
@@ -267,7 +360,7 @@ export function App() {
       setVoiceSession(null);
       setActiveRequest(null);
       responseTextRef.current = "";
-      setState("IDLE");
+      setState(voiceModeRef.current === "REALTIME" && realtimeRef.current?.active ? "LISTENING" : "IDLE");
     } catch (error) {
       if (voiceSessionIdRef.current !== sessionId) return;
       setVoiceError(errorText(error));
@@ -288,13 +381,60 @@ export function App() {
     setVoiceSession(null);
     if (sessionId) await window.jarvis.voice.cancel(sessionId);
     if (requestId) await window.jarvis.cancelChat(requestId);
+    if (voiceModeRef.current === "REALTIME") {
+      await realtimeRef.current?.cancel();
+      voiceModeRef.current = "PUSH_TO_TALK";
+      setVoiceMode("PUSH_TO_TALK");
+      setRealtimeState("DISCONNECTED");
+    }
+    setLiveTranscript("");
     setActiveRequest(null);
     responseIdRef.current = null;
     responseTextRef.current = "";
     setState("IDLE");
   }
 
+  async function changeVoiceMode(nextMode: RealtimeVoiceMode) {
+    if (nextMode === voiceModeRef.current) return;
+    setVoiceError(null);
+    if (nextMode === "PUSH_TO_TALK") {
+      await realtimeRef.current?.stop();
+      voiceModeRef.current = nextMode;
+      setVoiceMode(nextMode);
+      setRealtimeState("DISCONNECTED");
+      setLiveTranscript("");
+      if (!activeRequestIdRef.current && !voicePlaybackActiveRef.current) setState("IDLE");
+      return;
+    }
+
+    if (activeRequestIdRef.current || voicePlaybackActiveRef.current) await stop();
+    const devices = voiceDevices.length ? voiceDevices : await refreshMicrophones();
+    const selected = selectAudioInputDevice(devices, selectedDeviceId);
+    if (!selected) {
+      setVoiceError("No microphone input was found.");
+      return;
+    }
+
+    voiceModeRef.current = nextMode;
+    setVoiceMode(nextMode);
+    setRealtimeState("CONNECTING");
+    try {
+      await realtimeRef.current?.connect(selected.deviceId);
+      if (voiceModeRef.current === nextMode) {
+        setRealtimeState("LISTENING");
+        setState("LISTENING");
+      }
+    } catch (error) {
+      voiceModeRef.current = "PUSH_TO_TALK";
+      setVoiceMode("PUSH_TO_TALK");
+      setRealtimeState("DISCONNECTED");
+      setVoiceError(errorText(error));
+      addSystemMessage(errorText(error));
+    }
+  }
+
   function toggleVoice() {
+    if (voiceModeRef.current === "REALTIME") return;
     if (state === "LISTENING") {
       void finishVoiceRecording();
       return;
@@ -346,6 +486,12 @@ export function App() {
             <p>{message.text}</p>
           </article>
         ))}
+        {liveTranscript ? (
+          <article className="message message--user message--draft">
+            <span className="message__role">YOU</span>
+            <p>{liveTranscript}</p>
+          </article>
+        ) : null}
       </section>
 
       <footer className="composer-wrap">
@@ -353,8 +499,20 @@ export function App() {
           <span className={`activity-dot activity-dot--${state.toLowerCase()}`} />
           <span>{agent}</span>
           <span className="activity-separator">/</span>
-          <span>{statusText}</span>
+          <span>{voiceMode === "REALTIME" ? `LIVE ${realtimeState}` : statusText}</span>
           <span className="activity-fill" />
+          <span className="voice-level" aria-label="Microphone level">
+            LVL {Math.round(audioFeatures.rms * 100)}
+          </span>
+          <select
+            className="voice-mode-select"
+            aria-label="Voice mode"
+            value={voiceMode}
+            onChange={(event) => void changeVoiceMode(event.target.value as RealtimeVoiceMode)}
+          >
+            <option value="PUSH_TO_TALK">PUSH TO TALK</option>
+            <option value="REALTIME">REALTIME</option>
+          </select>
           <select
             className="voice-device-select"
             aria-label="Microphone input"
@@ -383,9 +541,9 @@ export function App() {
             aria-label={state === "LISTENING" ? "Finish voice recording" : "Start voice recording"}
             aria-pressed={state === "LISTENING"}
             onClick={toggleVoice}
-            disabled={Boolean(activeRequestId) && !voicePlaybackActiveRef.current}
+            disabled={voiceMode === "REALTIME" || (Boolean(activeRequestId) && !voicePlaybackActiveRef.current)}
           >
-            {state === "LISTENING" ? "DONE" : "MIC"}
+            {voiceMode === "REALTIME" ? "LIVE" : state === "LISTENING" ? "DONE" : "MIC"}
           </button>
           <input
             value={input}

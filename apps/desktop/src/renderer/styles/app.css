@@ -190,6 +190,8 @@ body {
 .activity-fill { flex: 1; }
 .stop-button { border: 1px solid rgba(130, 213, 240, 0.24); color: #75bbd1; background: transparent; padding: 5px 10px; font-size: 9px; letter-spacing: 0.13em; }
 .voice-device-select { max-width: 190px; border: 1px solid rgba(94, 209, 247, 0.18); color: #75bbd1; background: rgba(4, 17, 26, 0.9); padding: 5px 8px; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+.voice-mode-select { max-width: 140px; border: 1px solid rgba(94, 209, 247, 0.18); color: #75bbd1; background: rgba(4, 17, 26, 0.9); padding: 5px 8px; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+.voice-level { color: #4c879b; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .voice-error { max-width: 260px; overflow: hidden; color: #d9a5a5; text-overflow: ellipsis; white-space: nowrap; }
 
 .composer { max-width: 1040px; margin: auto; height: 54px; display: grid; grid-template-columns: 72px 1fr 92px; border: 1px solid rgba(94, 209, 247, 0.2); background: rgba(4, 17, 26, 0.8); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.26); }

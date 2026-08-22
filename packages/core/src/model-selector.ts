@@ -4,6 +4,7 @@ export type ModelSlot =
   | "conversation_fast"
   | "reasoning"
   | "realtime_voice"
+  | "realtime_transcription"
   | "speech_to_text"
   | "text_to_speech"
   | "coding"
@@ -13,6 +14,7 @@ export interface ModelConfig {
   conversation_fast: string;
   reasoning: string;
   realtime_voice: string;
+  realtime_transcription: string;
   speech_to_text: string;
   text_to_speech: string;
   coding: string;
@@ -31,6 +33,7 @@ const CURRENT_AUTO_MODELS = {
   balanced: "gpt-5.6-terra",
   deep: "gpt-5.6-sol",
   realtime: "gpt-realtime-2.1",
+  realtimeTranscription: "gpt-live-transcribe",
   speechToText: "gpt-transcribe",
   textToSpeech: "gpt-4o-mini-tts",
 } as const;
@@ -82,6 +85,17 @@ export class AutoModelSelector {
       slot: "speech_to_text",
       model: resolveConfiguredModel(this.config.speech_to_text, CURRENT_AUTO_MODELS.speechToText),
       reason: "Completed microphone recordings use the configured speech-to-text model.",
+    };
+  }
+
+  selectRealtimeTranscription(): ModelSelection {
+    return {
+      slot: "realtime_transcription",
+      model: resolveConfiguredModel(
+        this.config.realtime_transcription,
+        CURRENT_AUTO_MODELS.realtimeTranscription,
+      ),
+      reason: "Realtime microphone turns use the streaming transcription model so final text remains under Jarvis orchestration.",
     };
   }
 

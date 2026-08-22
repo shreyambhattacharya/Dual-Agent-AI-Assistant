@@ -14,6 +14,7 @@ Electron has a host-specific Chromium child-process sandbox regression on Window
 ## Secret handling
 - `OPENAI_API_KEY` is read only in the main process.
 - Renderer code never receives or serializes credentials.
+- Realtime voice uses a short-lived client secret created by the main process; the long-lived API key never enters renderer memory or IPC payloads.
 - `.env*` is ignored except `.env.example`.
 - Production credential storage should use OS-backed secure storage before release.
 
@@ -22,6 +23,7 @@ Electron has a host-specific Chromium child-process sandbox regression on Window
 - Transcription and speech synthesis run only in the trusted main process through the OpenAI SDK.
 - Voice IPC accepts typed payloads, validates an allowlisted audio MIME family, restricts metadata, caps input/output audio at 10 MB, and caps TTS input at 4,096 characters.
 - Voice operations use session-scoped cancellation signals and return typed public errors without exposing provider clients or credentials.
+- The renderer's WebRTC transport is restricted to the configured OpenAI Realtime calls endpoint and retains the ephemeral key only for session negotiation. Realtime transcription is configured without a model response path, so it cannot bypass the Jarvis orchestrator.
 
 ## Subprocess policy
 Future tool execution must use executable + argument arrays, not interpolated shell strings. Commands must pass through project scoping and permission policy. Destructive operations should be denied or confirmed based on configured risk level.

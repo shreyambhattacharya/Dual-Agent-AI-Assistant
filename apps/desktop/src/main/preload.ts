@@ -6,6 +6,8 @@ import type {
   VoiceSynthesisResponse,
   VoiceTranscriptionRequest,
   VoiceTranscriptionResponse,
+  RealtimeSessionRequest,
+  RealtimeSessionToken,
 } from "@jarvis/voice";
 
 export interface JarvisEventPayload {
@@ -33,6 +35,16 @@ const api = {
     },
     cancel(sessionId: string): Promise<boolean> {
       return ipcRenderer.invoke("jarvis:voice:cancel", sessionId);
+    },
+    realtime: {
+      createSession(
+        request: RealtimeSessionRequest,
+      ): Promise<VoiceOperationResult<RealtimeSessionToken>> {
+        return ipcRenderer.invoke("jarvis:voice:realtime:create-session", request);
+      },
+      cancel(sessionId: string): Promise<boolean> {
+        return ipcRenderer.invoke("jarvis:voice:realtime:cancel", sessionId);
+      },
     },
   },
   onEvent(callback: (payload: JarvisEventPayload) => void): () => void {
