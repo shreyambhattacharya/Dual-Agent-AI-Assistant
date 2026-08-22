@@ -1,5 +1,5 @@
 {
-  "name": "@jarvis/agents",
+  "name": "@jarvis/voice",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
@@ -8,10 +8,5 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test tests/*.test.cjs"
-  },
-  "dependencies": {
-    "@jarvis/core": "0.1.0",
-    "@jarvis/voice": "0.1.0",
-    "openai": "7.5.0"
   }
 }

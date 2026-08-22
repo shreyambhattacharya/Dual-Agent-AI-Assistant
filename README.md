@@ -9,9 +9,9 @@ The orchestration layer chooses the appropriate agent unless the user explicitly
 
 ## Current status
 
-This repository is at the first implementation milestone. The architecture, core routing domain, model-selection layer, project alias resolver, Electron security boundary, and the first typed ChatGPT streaming vertical slice are implemented.
+This repository has the M0/M1 foundation plus the first M2 voice vertical slice. The architecture, core routing domain, model-selection layer, project alias resolver, Electron security boundary, typed ChatGPT streaming path, microphone selection, push-to-talk recording, file transcription, and TTS playback are implemented.
 
-Codex routing is recognized now, but the Codex SDK adapter is intentionally not connected until the dedicated Codex milestone. Voice, SQLite memory, project persistence, tool execution, and the final React Three Fiber hologram are likewise staged in later milestones rather than being mocked as complete.
+Codex routing is recognized now, but the Codex SDK adapter is intentionally not connected until the dedicated Codex milestone. Realtime voice streaming, wake-word detection, SQLite memory, project persistence, tool execution, and the final React Three Fiber hologram remain staged rather than being mocked as complete.
 
 See [`docs/MILESTONES.md`](docs/MILESTONES.md) for exact status. The full authoritative product brief is preserved in [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md).
 
@@ -23,6 +23,9 @@ Renderer (React)
       │ narrow typed IPC
       ▼
 Electron main process
+      │
+      ├────────► Speech-to-text provider
+      ├────────► Text-to-speech provider
       │
       ▼
 Orchestrator ──► Router ──────► ChatGPT Agent
@@ -46,6 +49,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/ADR-001-desktop-ru
 - **UI:** React + TypeScript + Vite
 - **Core orchestration:** framework-independent TypeScript
 - **ChatGPT API:** OpenAI Responses API with streaming
+- **Voice input/output:** browser MediaRecorder plus main-process OpenAI file transcription and TTS
 - **Codex:** `@openai/codex-sdk` planned for the Codex milestone
 - **3D UI:** React Three Fiber / Three.js planned for the hologram milestone
 - **Persistence:** SQLite planned for structured local state
@@ -62,6 +66,8 @@ With `AUTO`, the current resolver uses:
 - balanced reasoning → `gpt-5.6-terra`
 - deep reasoning → `gpt-5.6-sol`
 - realtime voice → `gpt-realtime-2.1` when the voice adapter is implemented
+- speech-to-text → `gpt-transcribe`
+- text-to-speech → `gpt-4o-mini-tts`
 
 These mappings live behind `AutoModelSelector` and can change without rewriting agent or UI code.
 
@@ -76,6 +82,7 @@ jarvis/
 │           └── renderer/   # React presentation layer
 ├── packages/
 │   ├── core/               # pure orchestration/domain logic
+│   ├── voice/              # pure voice contracts, device rules, lifecycle
 │   └── agents/             # external agent adapters
 ├── config/              # defaults + project registry example
 ├── docs/
@@ -118,7 +125,7 @@ Start development mode:
 npm run dev
 ```
 
-Run core tests:
+Run all package tests:
 
 ```bash
 npm test
@@ -175,6 +182,18 @@ Automatic routing is implemented behind an `IntentClassifier` interface. The ini
 
 See [`docs/SECURITY.md`](docs/SECURITY.md).
 
+## Voice slice
+
+The initial M2 flow is deliberately push-to-talk and turn-based:
+
+```text
+microphone selection → MediaRecorder → typed voice IPC → gpt-transcribe
+→ existing startChat/orchestrator path → streamed assistant text
+→ gpt-4o-mini-tts → local audio playback
+```
+
+The transcript is submitted through the same router as typed text and is rendered as one user message. Pressing MIC while speech is playing stops playback and starts a new recording; STOP cancels capture, provider calls, chat, or playback as applicable.
+
 ## Next milestone
 
-The next implementation step is to verify the live ChatGPT vertical slice in a network-enabled development environment, then add voice input/output without changing the orchestrator contract. After that, the procedural hologram can consume real audio/state data, followed by Codex SDK integration and repository-scoped task execution.
+The next implementation step is to verify the live ChatGPT and voice paths in a network-enabled development environment. Realtime speech transport and wake-word abstraction can then extend the voice slice without changing the orchestrator contract, followed by the procedural hologram and Codex SDK integration.

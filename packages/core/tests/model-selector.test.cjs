@@ -6,6 +6,8 @@ const config = {
   conversation_fast: "AUTO",
   reasoning: "AUTO",
   realtime_voice: "AUTO",
+  speech_to_text: "AUTO",
+  text_to_speech: "AUTO",
   coding: "AUTO",
   coding_deep: "AUTO",
 };
@@ -32,4 +34,9 @@ test("AUTO resolves high-complexity chat to strongest reasoning tier", () => {
 test("explicit configuration overrides AUTO", () => {
   const custom = new AutoModelSelector({ ...config, reasoning: "custom-reasoning-model" });
   assert.equal(custom.selectForChat(task("HIGH")).model, "custom-reasoning-model");
+});
+
+test("voice model slots resolve independently", () => {
+  assert.equal(selector.selectSpeechToText().model, "gpt-transcribe");
+  assert.equal(selector.selectTextToSpeech().model, "gpt-4o-mini-tts");
 });

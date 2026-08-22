@@ -4,6 +4,8 @@ export type ModelSlot =
   | "conversation_fast"
   | "reasoning"
   | "realtime_voice"
+  | "speech_to_text"
+  | "text_to_speech"
   | "coding"
   | "coding_deep";
 
@@ -11,6 +13,8 @@ export interface ModelConfig {
   conversation_fast: string;
   reasoning: string;
   realtime_voice: string;
+  speech_to_text: string;
+  text_to_speech: string;
   coding: string;
   coding_deep: string;
 }
@@ -27,6 +31,8 @@ const CURRENT_AUTO_MODELS = {
   balanced: "gpt-5.6-terra",
   deep: "gpt-5.6-sol",
   realtime: "gpt-realtime-2.1",
+  speechToText: "gpt-transcribe",
+  textToSpeech: "gpt-4o-mini-tts",
 } as const;
 
 function resolveConfiguredModel(configured: string, fallback: string): string {
@@ -68,6 +74,22 @@ export class AutoModelSelector {
       slot: "realtime_voice",
       model: resolveConfiguredModel(this.config.realtime_voice, CURRENT_AUTO_MODELS.realtime),
       reason: "Voice uses an independently configurable realtime model tier.",
+    };
+  }
+
+  selectSpeechToText(): ModelSelection {
+    return {
+      slot: "speech_to_text",
+      model: resolveConfiguredModel(this.config.speech_to_text, CURRENT_AUTO_MODELS.speechToText),
+      reason: "Completed microphone recordings use the configured speech-to-text model.",
+    };
+  }
+
+  selectTextToSpeech(): ModelSelection {
+    return {
+      slot: "text_to_speech",
+      model: resolveConfiguredModel(this.config.text_to_speech, CURRENT_AUTO_MODELS.textToSpeech),
+      reason: "Completed assistant responses use the configured text-to-speech model.",
     };
   }
 }

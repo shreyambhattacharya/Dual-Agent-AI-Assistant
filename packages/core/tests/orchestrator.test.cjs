@@ -11,6 +11,8 @@ const models = {
   conversation_fast: "AUTO",
   reasoning: "AUTO",
   realtime_voice: "AUTO",
+  speech_to_text: "AUTO",
+  text_to_speech: "AUTO",
   coding: "AUTO",
   coding_deep: "AUTO",
 };

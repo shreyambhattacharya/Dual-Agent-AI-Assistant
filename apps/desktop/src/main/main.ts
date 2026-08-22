@@ -9,9 +9,26 @@ import {
   OrchestratorEvent,
   RuleBasedIntentClassifier,
 } from "@jarvis/core";
-import { OpenAIChatAgent, UnavailableAgent } from "@jarvis/agents";
+import {
+  OpenAIChatAgent,
+  OpenAISpeechSynthesisProvider,
+  OpenAITranscriptionProvider,
+  UnavailableAgent,
+} from "@jarvis/agents";
+import type {
+  VoiceOperationResult,
+  VoiceSynthesisRequest,
+  VoiceSynthesisResponse,
+  VoiceTranscriptionRequest,
+  VoiceTranscriptionResponse,
+} from "@jarvis/voice";
+import { normalizeVoiceError } from "@jarvis/voice";
 
 const activeRequests = new Map<string, AbortController>();
+const activeVoiceRequests = new Map<string, AbortController>();
+const MAX_VOICE_INPUT_BYTES = 10_000_000;
+const MAX_VOICE_OUTPUT_BYTES = 10_000_000;
+const MAX_VOICE_TEXT_LENGTH = 4_096;
 
 function applyWindows26200CompatibilityWorkaround(): void {
   if (process.platform !== "win32" || process.env.JARVIS_DISABLE_WINDOWS_26200_WORKAROUND === "1") {
@@ -38,9 +55,27 @@ const modelConfig: ModelConfig = {
   conversation_fast: process.env.JARVIS_MODEL_CONVERSATION_FAST || "AUTO",
   reasoning: process.env.JARVIS_MODEL_REASONING || "AUTO",
   realtime_voice: process.env.JARVIS_MODEL_REALTIME_VOICE || "AUTO",
+  speech_to_text: process.env.JARVIS_MODEL_SPEECH_TO_TEXT || "AUTO",
+  text_to_speech: process.env.JARVIS_MODEL_TEXT_TO_SPEECH || "AUTO",
   coding: process.env.JARVIS_MODEL_CODING || "AUTO",
   coding_deep: process.env.JARVIS_MODEL_CODING_DEEP || "AUTO",
 };
+
+const modelSelector = new AutoModelSelector(modelConfig);
+const openAiApiKey = process.env.OPENAI_API_KEY;
+const transcriptionProvider = openAiApiKey
+  ? new OpenAITranscriptionProvider({
+      apiKey: openAiApiKey,
+      model: modelSelector.selectSpeechToText().model,
+    })
+  : undefined;
+const speechSynthesisProvider = openAiApiKey
+  ? new OpenAISpeechSynthesisProvider({
+      apiKey: openAiApiKey,
+      model: modelSelector.selectTextToSpeech().model,
+      voice: process.env.JARVIS_TTS_VOICE || "marin",
+    })
+  : undefined;
 
 function createOrchestrator(): Orchestrator {
   const chatAgent = process.env.OPENAI_API_KEY
@@ -57,7 +92,7 @@ function createOrchestrator(): Orchestrator {
 
   return new Orchestrator(
     new AgentRouter(new RuleBasedIntentClassifier()),
-    new AutoModelSelector(modelConfig),
+    modelSelector,
     [chatAgent, codexAgent],
   );
 }
@@ -135,6 +170,18 @@ app.whenReady().then(() => {
         })) {
           sendEvent(target, payload.requestId, event);
         }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          sendEvent(target, payload.requestId, {
+            type: "agent",
+            event: {
+              type: "error",
+              code: "MAIN_PROCESS_FAILURE",
+              message: error instanceof Error ? error.message : "The request failed in the main process.",
+            },
+          });
+          sendEvent(target, payload.requestId, { type: "state", state: "ERROR" });
+        }
       } finally {
         activeRequests.delete(payload.requestId);
       }
@@ -144,6 +191,89 @@ app.whenReady().then(() => {
   ipcMain.handle("jarvis:chat:cancel", async (_event, requestId: unknown) => {
     if (typeof requestId !== "string") return false;
     const controller = activeRequests.get(requestId);
+    if (!controller) return false;
+    controller.abort();
+    return true;
+  });
+
+  ipcMain.handle(
+    "jarvis:voice:transcribe",
+    async (_event, payload: unknown): Promise<VoiceOperationResult<VoiceTranscriptionResponse>> => {
+      if (!isVoiceTranscriptionRequest(payload)) {
+        return voiceFailure("INVALID_VOICE_REQUEST", "Invalid transcription request.", false);
+      }
+      if (activeVoiceRequests.has(payload.sessionId)) {
+        return voiceFailure("INVALID_VOICE_REQUEST", "Duplicate voice session identifier.", false);
+      }
+      if (!transcriptionProvider) {
+        return voiceFailure(
+          "TRANSCRIPTION_UNAVAILABLE",
+          "Transcription is offline because OPENAI_API_KEY is not configured in the trusted desktop process.",
+          false,
+        );
+      }
+
+      const controller = new AbortController();
+      activeVoiceRequests.set(payload.sessionId, controller);
+      try {
+        const result = await transcriptionProvider.transcribe(
+          {
+            data: payload.data,
+            mimeType: payload.mimeType,
+            fileName: payload.fileName,
+            durationMs: payload.durationMs,
+          },
+          { signal: controller.signal },
+        );
+        const text = result.text.trim();
+        if (!text) return voiceFailure("EMPTY_TRANSCRIPT", "No speech was detected.", true);
+        return { ok: true, value: { text, durationMs: result.durationMs } };
+      } catch (error) {
+        return { ok: false, error: normalizeVoiceError(error, "TRANSCRIPTION_FAILED") };
+      } finally {
+        activeVoiceRequests.delete(payload.sessionId);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    "jarvis:voice:synthesize",
+    async (_event, payload: unknown): Promise<VoiceOperationResult<VoiceSynthesisResponse>> => {
+      if (!isVoiceSynthesisRequest(payload)) {
+        return voiceFailure("INVALID_VOICE_REQUEST", "Invalid speech synthesis request.", false);
+      }
+      if (activeVoiceRequests.has(payload.sessionId)) {
+        return voiceFailure("INVALID_VOICE_REQUEST", "Duplicate voice session identifier.", false);
+      }
+      if (!speechSynthesisProvider) {
+        return voiceFailure(
+          "SYNTHESIS_UNAVAILABLE",
+          "Speech synthesis is offline because OPENAI_API_KEY is not configured in the trusted desktop process.",
+          false,
+        );
+      }
+
+      const controller = new AbortController();
+      activeVoiceRequests.set(payload.sessionId, controller);
+      try {
+        const result = await speechSynthesisProvider.synthesize(payload.text, {
+          signal: controller.signal,
+        });
+        if (result.data.byteLength > MAX_VOICE_OUTPUT_BYTES) {
+          return voiceFailure("AUDIO_TOO_LARGE", "Generated speech exceeded the playback size limit.", false);
+        }
+        return { ok: true, value: result };
+      } catch (error) {
+        return { ok: false, error: normalizeVoiceError(error, "SYNTHESIS_FAILED") };
+      } finally {
+        activeVoiceRequests.delete(payload.sessionId);
+      }
+    },
+  );
+
+  ipcMain.handle("jarvis:voice:cancel", async (_event, sessionId: unknown) => {
+    if (typeof sessionId !== "string") return false;
+    const controller = activeVoiceRequests.get(sessionId);
     if (!controller) return false;
     controller.abort();
     return true;
@@ -173,5 +303,57 @@ function isStartPayload(payload: unknown): payload is StartPayload {
     typeof value.text === "string" &&
     value.text.trim().length > 0 &&
     value.text.length <= 100_000
+  );
+}
+
+function voiceFailure<T>(
+  code: Parameters<typeof normalizeVoiceError>[1],
+  message: string,
+  retryable: boolean,
+): VoiceOperationResult<T> {
+  return { ok: false, error: { code, message, retryable } };
+}
+
+function isVoiceSessionId(value: unknown): value is string {
+  return typeof value === "string" && value.length >= 8 && value.length <= 128;
+}
+
+function isAudioMimeType(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^audio\/(?:webm|ogg|wav|mpeg|mp4|x-m4a|aac|flac)(?:;|$)/i.test(value)
+  );
+}
+
+function readVoiceBytes(value: unknown): Uint8Array | undefined {
+  if (value instanceof Uint8Array) return value;
+  return undefined;
+}
+
+function isVoiceTranscriptionRequest(value: unknown): value is VoiceTranscriptionRequest {
+  if (!value || typeof value !== "object") return false;
+  const payload = value as Record<string, unknown>;
+  const data = readVoiceBytes(payload.data);
+  return (
+    isVoiceSessionId(payload.sessionId) &&
+    data !== undefined &&
+    data.byteLength > 0 &&
+    data.byteLength <= MAX_VOICE_INPUT_BYTES &&
+    isAudioMimeType(payload.mimeType) &&
+    typeof payload.fileName === "string" &&
+    /^[a-zA-Z0-9._-]{1,128}$/.test(payload.fileName) &&
+    (payload.durationMs === undefined ||
+      (typeof payload.durationMs === "number" && Number.isFinite(payload.durationMs) && payload.durationMs >= 0))
+  );
+}
+
+function isVoiceSynthesisRequest(value: unknown): value is VoiceSynthesisRequest {
+  if (!value || typeof value !== "object") return false;
+  const payload = value as Record<string, unknown>;
+  return (
+    isVoiceSessionId(payload.sessionId) &&
+    typeof payload.text === "string" &&
+    payload.text.trim().length > 0 &&
+    payload.text.length <= MAX_VOICE_TEXT_LENGTH
   );
 }

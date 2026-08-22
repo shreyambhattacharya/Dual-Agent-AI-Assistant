@@ -31,6 +31,8 @@ flowchart TD
 Responsibilities:
 - React UI and state rendering.
 - Text input and message rendering.
+- Microphone permission, device selection, and MediaRecorder capture.
+- Local audio playback of bytes returned by the trusted process.
 - Hologram rendering and audio-reactive animation.
 - Diff/task/status presentation.
 - User permission prompts.
@@ -84,13 +86,15 @@ The first vertical slice uses the OpenAI Responses API with streaming. Model cho
 Planned implementation uses `@openai/codex-sdk` in the main process. A Codex thread will be scoped to a registered repository and its lifecycle will be represented as an explicit task. SDK events will be normalized into public action/status events; private reasoning is never forwarded to the renderer or audit log.
 
 ## Model selection
-Configuration stores symbolic slots such as `conversation_fast`, `reasoning`, `realtime_voice`, `coding`, and `coding_deep`. `AUTO` is resolved at runtime.
+Configuration stores symbolic slots such as `conversation_fast`, `reasoning`, `realtime_voice`, `speech_to_text`, `text_to_speech`, `coding`, and `coding_deep`. `AUTO` is resolved at runtime.
 
 Initial current-capability defaults:
 - low-latency simple text: GPT-5.6 Luna;
 - balanced text reasoning: GPT-5.6 Terra;
 - deep reasoning: GPT-5.6 Sol;
 - realtime voice: resolved independently by the future voice adapter;
+- speech-to-text: `gpt-transcribe` for completed recordings;
+- text-to-speech: `gpt-4o-mini-tts` for initial playback;
 - Codex model: delegated to the Codex integration/configuration rather than the ChatGPT adapter.
 
 Environment overrides can replace every resolved model without code changes.
@@ -111,9 +115,13 @@ Project aliases are normalized and resolved by a dedicated registry. Persistent 
 Long-running work will use explicit task objects rather than implicit prompt chains. Task state will include agent, project, goal, phase, timestamps, cancellation token, tool activity, changed files, test results, and permission requests.
 
 ## Voice boundary
-Voice is a transport and UI-state source, not an alternate orchestrator. The planned pipeline is:
+Voice is a transport and UI-state source, not an alternate orchestrator. The implemented M2 pipeline is:
 
-`audio input -> local wake/VAD -> realtime transport -> transcript -> same router/orchestrator -> audio output`
+`selected microphone -> renderer MediaRecorder -> typed voice:transcribe IPC -> main-process transcription provider -> transcript -> existing startChat IPC -> same router/orchestrator -> streamed text -> typed voice:synthesize IPC -> renderer audio playback`
+
+The initial slice is turn-based and uses completed audio recordings. Realtime transport, local wake-word/VAD, and audio-reactive visualization are follow-on work. A spoken transcript creates its user message only when it enters the existing `startChat` path, so voice does not create a second routing or conversation system.
+
+The main process validates session identifiers, MIME types, file names, byte sizes, and TTS text length. Provider failures return typed public errors; credentials and SDK objects never cross the preload boundary.
 
 This lets typed and spoken requests share routing, memory, permissions, projects, and tools.
 

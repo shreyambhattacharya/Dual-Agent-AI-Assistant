@@ -26,15 +26,18 @@ Status: IMPLEMENTED, automated verification complete; Electron launch blocked by
 Runtime note: this development host is Windows 11 build 26200. Electron and an isolated minimal Electron app both terminate with a native `electron.exe` application error before Jarvis code runs. The main process includes the documented GPU compatibility switches and a `did-finish-load` visibility fallback, but a live Electron window still requires a host update/repair or a machine without this Windows 25H2 regression. `OPENAI_API_KEY` was not configured, so live API streaming also remains unverified.
 
 ## M2 - Voice
-Status: NOT STARTED
+Status: IN PROGRESS — completed-recording vertical slice implemented; realtime and wake-word work remain
 
-- [ ] Audio device enumeration.
-- [ ] Push-to-talk.
+- [x] Audio device enumeration with deliberate browser permission request.
+- [x] Push-to-talk recording using the selected microphone.
 - [ ] Realtime speech transport.
-- [ ] Visible transcription.
-- [ ] Speech output.
-- [ ] Barge-in / interruption.
+- [x] Completed-recording transcription through the trusted main process.
+- [x] Visible transcription through the existing user-message/orchestrator path.
+- [x] Speech output through the trusted main process and renderer playback.
+- [x] Manual interruption: STOP cancels every active stage and MIC interrupts playback.
 - [ ] Local wake-word abstraction and initial implementation.
+
+The current slice uses turn-based file transcription and TTS because it is the smallest complete voice path. It does not claim realtime streaming, wake-word activation, persistence, or audio-reactive hologram behavior. Live provider verification remains dependent on a configured `OPENAI_API_KEY` and a host where Electron launches successfully.
 
 ## M3 - Procedural hologram
 Status: NOT STARTED
