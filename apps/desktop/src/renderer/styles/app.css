@@ -1,0 +1,210 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #d9f4ff;
+  background: #03070d;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; height: 100%; margin: 0; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+body {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(0, 125, 190, 0.14), transparent 34%),
+    linear-gradient(180deg, #03080f 0%, #020509 100%);
+}
+
+.shell {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(330px, 1fr) minmax(170px, 32vh) auto;
+  position: relative;
+}
+
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  background-image:
+    linear-gradient(rgba(74, 203, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 203, 255, 0.14) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+.topbar {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  border-bottom: 1px solid rgba(93, 206, 255, 0.14);
+  background: rgba(3, 10, 17, 0.72);
+  backdrop-filter: blur(18px);
+  z-index: 2;
+}
+
+.brand { letter-spacing: 0.34em; font-weight: 700; font-size: 15px; color: #aeeaff; }
+.subtitle { margin-top: 5px; font-size: 11px; letter-spacing: 0.12em; color: #50798b; text-transform: uppercase; }
+.topbar__status { display: flex; align-items: center; gap: 9px; font-size: 11px; letter-spacing: 0.18em; color: #7aa5b7; }
+.presence-dot { width: 7px; height: 7px; border-radius: 50%; background: #8ee9ff; box-shadow: 0 0 15px #5fdcff; }
+
+.hero {
+  min-height: 330px;
+  display: grid;
+  grid-template-columns: 1fr minmax(340px, 540px) 1fr;
+  place-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.telemetry {
+  width: min(220px, 80%);
+  padding: 14px 0;
+  border-top: 1px solid rgba(99, 218, 255, 0.24);
+  border-bottom: 1px solid rgba(99, 218, 255, 0.08);
+  color: #477589;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+}
+.telemetry strong { display: block; margin-top: 8px; color: #98e8ff; font-size: 12px; font-weight: 600; }
+.telemetry--right { text-align: right; }
+
+.holo {
+  width: min(48vh, 430px);
+  aspect-ratio: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 38px rgba(0, 174, 255, 0.18));
+}
+
+.holo::before,
+.holo::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.holo::before {
+  inset: 8%;
+  background: radial-gradient(circle, rgba(69, 207, 255, 0.14), rgba(0, 92, 145, 0.04) 52%, transparent 69%);
+  animation: breathe 5s ease-in-out infinite;
+}
+.holo::after {
+  inset: 33%;
+  background: #38cfff;
+  opacity: 0.11;
+  box-shadow: 0 0 80px 26px #00a8ff;
+  animation: corePulse 3s ease-in-out infinite;
+}
+
+.holo__orbit {
+  position: absolute;
+  border: 1px solid rgba(100, 222, 255, 0.34);
+  border-radius: 50%;
+  box-shadow: inset 0 0 18px rgba(0, 175, 255, 0.08), 0 0 18px rgba(0, 175, 255, 0.08);
+}
+.holo__orbit::before,
+.holo__orbit::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: #79e7ff;
+  box-shadow: 0 0 12px #43d6ff;
+}
+.holo__orbit::before { width: 5px; height: 5px; top: 14%; left: 12%; }
+.holo__orbit::after { width: 3px; height: 3px; right: 8%; bottom: 28%; }
+.holo__orbit--outer { inset: 4%; border-style: dashed; animation: spin 24s linear infinite; }
+.holo__orbit--middle { inset: 15%; transform: rotateX(64deg); animation: spinReverse 17s linear infinite; }
+.holo__orbit--inner { inset: 27%; border-color: rgba(135, 234, 255, 0.52); animation: spin 10s linear infinite; }
+
+.holo__mesh {
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  border: 1px solid rgba(98, 219, 255, 0.25);
+  background:
+    repeating-radial-gradient(circle, transparent 0 14px, rgba(69, 210, 255, 0.07) 15px 16px),
+    repeating-conic-gradient(from 12deg, rgba(50, 204, 255, 0.10) 0 1deg, transparent 1deg 18deg);
+  animation: meshDrift 14s linear infinite;
+}
+
+.holo__core {
+  z-index: 2;
+  width: 126px;
+  height: 126px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(130, 229, 255, 0.42);
+  background: radial-gradient(circle, rgba(11, 50, 67, 0.92), rgba(2, 16, 27, 0.94));
+  box-shadow: inset 0 0 26px rgba(48, 205, 255, 0.14), 0 0 35px rgba(0, 172, 255, 0.16);
+}
+.holo__label { font-size: 13px; letter-spacing: 0.23em; margin-left: 0.23em; color: #c7f5ff; }
+.holo__status { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: #4d8ba3; }
+
+.holo--routing .holo__orbit--outer,
+.holo--thinking .holo__orbit--outer,
+.holo--codex_working .holo__orbit--outer { animation-duration: 5s; }
+.holo--thinking .holo__orbit--middle,
+.holo--codex_working .holo__orbit--middle { animation-duration: 3.5s; }
+.holo--thinking::after,
+.holo--codex_working::after { opacity: 0.22; animation-duration: 1.1s; }
+.holo--error { filter: saturate(0.45) drop-shadow(0 0 25px rgba(113, 185, 210, 0.2)); }
+
+.conversation {
+  overflow: auto;
+  padding: 18px 28px 8px;
+  border-top: 1px solid rgba(90, 203, 244, 0.12);
+  background: linear-gradient(180deg, rgba(2, 9, 15, 0.5), rgba(2, 7, 12, 0.92));
+  z-index: 2;
+}
+
+.message { max-width: 920px; margin: 0 auto 16px; display: grid; grid-template-columns: 82px 1fr; gap: 16px; }
+.message__role { padding-top: 3px; font-size: 9px; letter-spacing: 0.18em; color: #3b6e84; }
+.message p { margin: 0; line-height: 1.65; color: #a8cbd9; white-space: pre-wrap; }
+.message--user p { color: #d5eef7; }
+.message--assistant p { color: #bdefff; }
+.message--system p { color: #6f98aa; font-size: 13px; }
+
+.composer-wrap {
+  padding: 10px 28px 22px;
+  background: rgba(2, 7, 12, 0.97);
+  border-top: 1px solid rgba(92, 205, 246, 0.12);
+  z-index: 3;
+}
+.activity-strip { max-width: 1040px; margin: 0 auto 9px; display: flex; align-items: center; gap: 9px; color: #54798a; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; }
+.activity-dot { width: 6px; height: 6px; border-radius: 50%; background: #4eb9df; box-shadow: 0 0 10px rgba(78, 185, 223, 0.75); }
+.activity-dot--thinking, .activity-dot--routing, .activity-dot--codex_working { animation: blink 0.8s ease-in-out infinite alternate; }
+.activity-separator { color: #254351; }
+.activity-fill { flex: 1; }
+.stop-button { border: 1px solid rgba(130, 213, 240, 0.24); color: #75bbd1; background: transparent; padding: 5px 10px; font-size: 9px; letter-spacing: 0.13em; }
+
+.composer { max-width: 1040px; margin: auto; height: 54px; display: grid; grid-template-columns: 72px 1fr 92px; border: 1px solid rgba(94, 209, 247, 0.2); background: rgba(4, 17, 26, 0.8); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.26); }
+.composer input { min-width: 0; border: 0; outline: 0; padding: 0 16px; color: #d9f7ff; background: transparent; }
+.composer input::placeholder { color: #365866; }
+.composer button { border: 0; border-left: 1px solid rgba(94, 209, 247, 0.14); background: rgba(13, 78, 103, 0.12); color: #76dfff; font-size: 10px; letter-spacing: 0.15em; }
+.composer button:disabled { color: #315564; cursor: default; }
+.mic-button { border-left: 0 !important; border-right: 1px solid rgba(94, 209, 247, 0.14) !important; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes breathe { 50% { transform: scale(1.035); opacity: 0.72; } }
+@keyframes corePulse { 50% { transform: scale(1.1); opacity: 0.18; } }
+@keyframes meshDrift { to { transform: rotate(-360deg); } }
+@keyframes blink { to { opacity: 0.3; transform: scale(0.8); } }
+
+@media (max-width: 1040px) {
+  .hero { grid-template-columns: 140px 1fr 140px; }
+  .telemetry { width: 100%; padding-inline: 12px; }
+}

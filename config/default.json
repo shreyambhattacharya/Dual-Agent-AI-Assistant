@@ -1,0 +1,31 @@
+{
+  "assistant": {
+    "name": "Jarvis"
+  },
+  "routing": {
+    "automatic": true
+  },
+  "models": {
+    "conversation_fast": "AUTO",
+    "reasoning": "AUTO",
+    "realtime_voice": "AUTO",
+    "coding": "AUTO",
+    "coding_deep": "AUTO"
+  },
+  "permissions": {
+    "read_files": "allow",
+    "search_files": "allow",
+    "run_tests": "allow",
+    "inspect_git": "allow",
+    "modify_files": "allow",
+    "create_files": "allow",
+    "delete_files": "ask",
+    "install_dependencies": "ask",
+    "git_commit": "allow",
+    "git_push": "ask",
+    "git_merge": "ask",
+    "git_force": "deny",
+    "deploy": "ask",
+    "flash_hardware": "ask"
+  }
+}

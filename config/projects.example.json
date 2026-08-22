@@ -1,0 +1,25 @@
+{
+  "projects": [
+    {
+      "id": "cpu_system",
+      "name": "32-Bit Computer System",
+      "aliases": ["computer", "mini computer", "cpu", "fpga computer", "32-bit computer"],
+      "repositoryPath": "<set-local-path>",
+      "preferredAgent": "CODEX"
+    },
+    {
+      "id": "hil_autonomy",
+      "name": "HIL Embedded Autonomy Platform",
+      "aliases": ["HIL project", "autonomy system", "rover", "embedded autonomy"],
+      "repositoryPath": "<set-local-path>",
+      "preferredAgent": "CODEX"
+    },
+    {
+      "id": "garbage_sorter",
+      "name": "AI Garbage Sorter",
+      "aliases": ["garbage sorter", "trash sorter"],
+      "repositoryPath": "<set-local-path>",
+      "preferredAgent": "CODEX"
+    }
+  ]
+}

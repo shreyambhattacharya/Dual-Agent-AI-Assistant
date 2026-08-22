@@ -1,0 +1,20 @@
+{
+  "name": "jarvis-dual-agent-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Voice-first dual-agent desktop assistant with ChatGPT and Codex orchestration.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @jarvis/core && npm run build -w @jarvis/agents && npm run build -w @jarvis/desktop",
+    "build:core": "npm run build -w @jarvis/core",
+    "test": "npm run test -w @jarvis/core",
+    "typecheck": "npm run typecheck -w @jarvis/core",
+    "dev": "npm run build -w @jarvis/core && npm run build -w @jarvis/agents && npm run dev -w @jarvis/desktop"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
