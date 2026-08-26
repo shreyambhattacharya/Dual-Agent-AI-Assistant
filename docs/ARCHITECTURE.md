@@ -25,6 +25,8 @@ flowchart TD
     O --> E[Normalized UI events]
     E --> IPC
     IPC --> UI
+    UI --> H[Hologram mapper + R3F scene]
+    H --> HF[CSS/WebGL fallback]
 ```
 
 ## Process trust boundary
@@ -132,6 +134,16 @@ The push-to-talk fallback remains turn-based and uses completed audio recordings
 The Realtime session is transcription-only, so it cannot bypass Jarvis routing or answer independently. Partial transcript events are renderer drafts; only a provider final event may create one user message. Each event is scoped by a session ID and transcript item ID to prevent stale sessions and duplicate finals from mutating the current task.
 
 The renderer keeps the microphone transport and UI state separate from the public `AppState`. `speech_started` performs real interruption by stopping local playback and cancelling the active TTS/chat request before the next final transcript is submitted. A conservative connection failure returns to push-to-talk rather than retrying indefinitely. A spoken transcript creates its user message only when it enters the existing `startChat` path, so voice does not create a second routing or conversation system.
+
+## Hologram boundary
+
+The hologram is presentation-only. `HoloCore` receives `{ state, agent, audio }`, where audio is a serializable semantic payload with `source: USER | ASSISTANT | NONE` and normalized `rms`, `low`, `mid`, and `high` values. `hologram/model.ts` is pure mapping logic: every `AppState` has a target profile, and audio bands modulate scale, distortion, orbital speed/spread, pulse, and particle activity. Agent identity changes the structure and motion profile while retaining one cohesive palette.
+
+`HologramScene` owns no React state in its frame loop. It keeps a mutable visual target in a ref, damps transitions with `useFrame`, and passes that ref to the procedural core, energy shell, orbital rings, and particle field. Geometry and particle buffers are created only when quality changes and are disposed on unmount. `FULL` and `REDUCED` profiles clamp DPR and particle/geometry counts; reduced-motion preferences lower animation speed. No post-processing or external 3D assets are required.
+
+`HologramCanvas` is mounted only when a WebGL context is available. A React error boundary catches scene initialization/runtime errors and renders `HologramFallback`, a CSS-only visualization with matching semantic state labels. The development harness is query-gated and only compiled into the Vite development flow, so production UI cannot expose debug injection controls.
+
+Audio reactivity is fed by the existing renderer voice paths. `BrowserAudioAnalyzer` can attach to a microphone `MediaStream` or a TTS `HTMLMediaElement`; both use the shared pure analyser feature functions from `packages/voice` and are stopped with their owning capture/playback lifecycle. The TTS object URL and analyser context are released when playback ends or is interrupted.
 
 The main process validates session identifiers, MIME types, file names, byte sizes, and TTS text length. Provider failures return typed public errors; credentials and SDK objects never cross the preload boundary.
 

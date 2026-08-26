@@ -9,19 +9,24 @@
     "dev:renderer": "vite --host 127.0.0.1 --port 5173",
     "dev:electron": "wait-on tcp:5173 file:dist-main/main/main.js && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 electron .",
     "build": "tsc -p tsconfig.main.json && vite build",
+    "build:hologram-tests": "tsc -p tsconfig.hologram-tests.json",
+    "test": "npm run build:hologram-tests && node --test tests/*.test.cjs",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
   },
   "dependencies": {
     "@jarvis/agents": "0.1.0",
     "@jarvis/core": "0.1.0",
     "@jarvis/voice": "0.1.0",
+    "@react-three/fiber": "^9.7.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.185.4",
     "@vitejs/plugin-react": "6.1.0",
     "concurrently": "10.0.4",
     "cross-env": "^10.0.0",

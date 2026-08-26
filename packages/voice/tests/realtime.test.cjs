@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const {
   applyRealtimeTranscriptEvent,
+  analyserSamplesToAudioFeatures,
   createRealtimeTranscriptState,
   frequencyBinsToAudioFeatures,
   smoothAudioFeatures,
@@ -70,4 +71,11 @@ test("audio features stay normalized and smoothing damps abrupt changes", () => 
     0.25,
   );
   assert.deepEqual(smoothed, { rms: 0.25, low: 0.25, mid: 0.25, high: 0.25 });
+});
+
+test("analyser features use time-domain RMS and shared frequency bands", () => {
+  const features = analyserSamplesToAudioFeatures([128, 192, 64], [255, 0, 128, 64]);
+  assert.ok(features.rms > 0);
+  assert.equal(features.low, 1);
+  assert.ok(features.mid >= 0 && features.high >= 0);
 });

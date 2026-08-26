@@ -1,5 +1,6 @@
 import { normalizeAudioInputDevices } from "@jarvis/voice";
-import type { AudioInputDevice, AudioRecording, VoiceErrorCode } from "@jarvis/voice";
+import type { AudioFeatures, AudioInputDevice, AudioRecording, VoiceErrorCode } from "@jarvis/voice";
+import { BrowserAudioAnalyzer } from "./realtime-analyzer";
 
 export class VoiceClientError extends Error {
   constructor(
@@ -60,6 +61,11 @@ export class BrowserVoiceCapture {
     resolve: (recording: AudioRecording) => void;
     reject: (error: unknown) => void;
   } | null = null;
+  private readonly analyzer: BrowserAudioAnalyzer;
+
+  constructor(onFeatures: (features: AudioFeatures) => void = () => {}) {
+    this.analyzer = new BrowserAudioAnalyzer(onFeatures);
+  }
 
   async start(deviceId?: string): Promise<void> {
     if (this.recorder) throw new VoiceClientError("AUDIO_CAPTURE_FAILED", "A microphone recording is already active.");
@@ -70,6 +76,7 @@ export class BrowserVoiceCapture {
     const audio = deviceId ? { deviceId: { exact: deviceId } } : true;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio });
+      this.analyzer.start(this.stream);
       const mimeType = supportedMimeType();
       this.recorder = mimeType ? new MediaRecorder(this.stream, { mimeType }) : new MediaRecorder(this.stream);
       this.chunks = [];
@@ -154,6 +161,7 @@ export class BrowserVoiceCapture {
   }
 
   private cleanupStream(): void {
+    this.analyzer.stop();
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
   }

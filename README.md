@@ -9,9 +9,9 @@ The orchestration layer chooses the appropriate agent unless the user explicitly
 
 ## Current status
 
-This repository has the M0/M1 foundation plus the M2 voice vertical slice and realtime voice foundation. The architecture, core routing domain, model-selection layer, project alias resolver, Electron security boundary, typed ChatGPT streaming path, microphone selection, push-to-talk recording, realtime transcription over browser WebRTC, server VAD, partial transcript drafts, barge-in cancellation, file transcription fallback, and TTS playback are implemented.
+This repository has the M0/M1 foundation, the M2 voice vertical slice and realtime voice foundation, and the M3 procedural hologram. The architecture, core routing domain, model-selection layer, project alias resolver, Electron security boundary, typed ChatGPT streaming path, microphone selection, push-to-talk recording, realtime transcription over browser WebRTC, server VAD, partial transcript drafts, barge-in cancellation, file transcription fallback, TTS playback, and the React Three Fiber visual layer are implemented.
 
-Codex routing is recognized now, but the Codex SDK adapter is intentionally not connected until the dedicated Codex milestone. Production wake-word detection, SQLite memory, project persistence, tool execution, and the final React Three Fiber hologram remain staged rather than being mocked as complete. A no-op wake-word interface and audio-feature foundation are present so those modules can be replaced later.
+Codex routing is recognized now, but the Codex SDK adapter is intentionally not connected until the dedicated Codex milestone. Production wake-word detection, SQLite memory, project persistence, and tool execution remain staged rather than being mocked as complete. A no-op wake-word interface and audio-feature foundation are present so those modules can be replaced later.
 
 See [`docs/MILESTONES.md`](docs/MILESTONES.md) for exact status. The full authoritative product brief is preserved in [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md).
 
@@ -44,6 +44,8 @@ Orchestrator ──► Router ──────► ChatGPT Agent
       └────────► Tool registry (planned)
 ```
 
+The renderer’s hologram is a replaceable presentation module. A pure visual mapper converts the public `AppState`, active agent, and semantic audio features into stable targets; React Three Fiber’s frame loop damps those targets into a procedural core, independent orbital rings, an energy shell, and a bounded particle field. WebGL failures and unavailable contexts use the CSS fallback, while `FULL` and `REDUCED` profiles clamp device pixel ratio and scene complexity.
+
 The renderer has no Node.js integration, no filesystem authority, and no access to API credentials. Privileged work stays in the trusted Electron main process.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/ADR-001-desktop-runtime.md`](docs/ADR-001-desktop-runtime.md).
@@ -56,7 +58,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/ADR-001-desktop-ru
 - **ChatGPT API:** OpenAI Responses API with streaming
 - **Voice input/output:** browser WebRTC to an OpenAI Realtime transcription session, with MediaRecorder/file transcription and TTS fallback
 - **Codex:** `@openai/codex-sdk` planned for the Codex milestone
-- **3D UI:** React Three Fiber / Three.js planned for the hologram milestone
+- **3D UI:** React Three Fiber + Three.js procedural hologram with CSS fallback
 - **Persistence:** SQLite planned for structured local state
 
 Electron was selected deliberately instead of Tauri for the initial architecture because Codex's SDK is TypeScript-native and wraps the Codex CLI. Keeping agent integration, repository tooling, Git, subprocess control, and task orchestration in one trusted Node runtime avoids introducing a Rust/Node sidecar solely for Codex.
@@ -211,6 +213,19 @@ trusted main process → short-lived client secret
 
 The Realtime session is transcription-only; it never answers independently. Partial text is a draft, final text is submitted once per provider item, and `speech_started` interrupts active chat cancellation, TTS cancellation, and local playback. If negotiation or the connection fails, the UI returns to push-to-talk. The transport decision and security implications are recorded in [`docs/ADR-002-realtime-voice-transport.md`](docs/ADR-002-realtime-voice-transport.md).
 
+## Procedural hologram
+
+The hologram accepts semantic input rather than owning voice or orchestration state:
+
+```text
+push-to-talk / realtime microphone analyser ─┐
+                                             ├─► audio features ─► visual mapper ─► R3F frame loop
+TTS HTMLAudioElement analyser ───────────────┘                         │
+                                                                       └─► CSS fallback when WebGL is unavailable
+```
+
+Microphone and assistant playback both expose normalized `rms`, `low`, `mid`, and `high` features. The scene has distinct behavior for every public app state and displays the active agent and audio source in the DOM overlay. For visual QA, run the renderer and open `?hologramHarness=1&hologramQuality=REDUCED`; the development-only harness can inject all states, agents, audio sources, and band levels without an Electron preload.
+
 ## Next milestone
 
-The next implementation step is live verification of the ChatGPT and realtime voice paths in a network-enabled environment where Electron launches successfully, followed by the procedural hologram and Codex SDK integration.
+The next implementation step is live verification of the ChatGPT and realtime voice paths in a network-enabled environment where Electron launches successfully, followed by Codex SDK integration.

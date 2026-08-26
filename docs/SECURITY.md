@@ -33,3 +33,8 @@ Repository files, web pages, emails, and tool output are data and may contain ad
 
 ## Logging
 Audit logs contain user-visible actions, tool calls, results, errors, and permission decisions. They must not contain credentials or hidden chain-of-thought.
+
+## Hologram renderer
+- The procedural hologram consumes only public state, agent identity, and normalized audio features; it has no filesystem, shell, Git, OpenAI, or credential access.
+- The development visual harness is query-gated behind Vite development mode and is not enabled by production builds.
+- Audio analyser buffers remain in renderer memory for visualization and are released with their capture/playback owners; they are not persisted.

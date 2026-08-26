@@ -3,6 +3,7 @@ import type { AgentId, AppState, OrchestratorEvent } from "@jarvis/core";
 import {
   applyRealtimeTranscriptEvent,
   createRealtimeTranscriptState,
+  SILENT_AUDIO_FEATURES,
   selectAudioInputDevice,
 } from "@jarvis/voice";
 import type {
@@ -15,6 +16,7 @@ import { HoloCore } from "./components/HoloCore";
 import { BrowserVoiceCapture, enumerateAudioInputDevices, VoiceClientError } from "./voice/capture";
 import { BrowserAudioPlayback } from "./voice/playback";
 import { BrowserRealtimeVoiceSession } from "./voice/realtime-session";
+import type { HologramAudioSource } from "./hologram/model";
 
 type Message = {
   id: string;
@@ -45,6 +47,7 @@ export function App() {
   const [realtimeState, setRealtimeState] = useState("DISCONNECTED");
   const [liveTranscript, setLiveTranscript] = useState("");
   const [audioFeatures, setAudioFeatures] = useState<AudioFeatures>({ rms: 0, low: 0, mid: 0, high: 0 });
+  const [hologramAudioSource, setHologramAudioSource] = useState<HologramAudioSource>("NONE");
   const [, setVoiceSessionId] = useState<string | null>(null);
   const responseIdRef = useRef<string | null>(null);
   const responseTextRef = useRef("");
@@ -57,8 +60,20 @@ export function App() {
   const realtimeTranscriptRef = useRef(createRealtimeTranscriptState());
   const voiceModeRef = useRef<RealtimeVoiceMode>("PUSH_TO_TALK");
 
-  if (!captureRef.current) captureRef.current = new BrowserVoiceCapture();
-  if (!playbackRef.current) playbackRef.current = new BrowserAudioPlayback();
+  if (!captureRef.current) {
+    captureRef.current = new BrowserVoiceCapture((features) => {
+      if (!voicePlaybackActiveRef.current) {
+        setAudioFeatures(features);
+        setHologramAudioSource("USER");
+      }
+    });
+  }
+  if (!playbackRef.current) {
+    playbackRef.current = new BrowserAudioPlayback((features) => {
+      setAudioFeatures(features);
+      setHologramAudioSource("ASSISTANT");
+    });
+  }
   if (!realtimeRef.current) realtimeRef.current = new BrowserRealtimeVoiceSession();
 
   function setActiveRequest(requestId: string | null) {
@@ -75,7 +90,13 @@ export function App() {
     setMessages((current) => [...current, { id: crypto.randomUUID(), role: "system", text }]);
   }
 
+  function clearHologramAudio() {
+    setAudioFeatures(SILENT_AUDIO_FEATURES);
+    setHologramAudioSource("NONE");
+  }
+
   useEffect(() => {
+    if (!window.jarvis) return;
     const removeListener = window.jarvis.onEvent(({ requestId, event }) => {
       const activeRequest = activeRequestIdRef.current;
       if (!activeRequest || requestId !== activeRequest) return;
@@ -106,6 +127,7 @@ export function App() {
         responseTextRef.current = "";
         setVoiceSession(null);
         voicePlaybackActiveRef.current = false;
+        clearHologramAudio();
       }
       setState(event.state);
       return;
@@ -185,7 +207,10 @@ export function App() {
     }
 
     if (event.type === "audio_level") {
-      setAudioFeatures(event.features);
+      if (!voicePlaybackActiveRef.current) {
+        setAudioFeatures(event.features);
+        setHologramAudioSource("USER");
+      }
       return;
     }
 
@@ -273,6 +298,7 @@ export function App() {
     setVoiceError(null);
     playbackRef.current?.stop();
     voicePlaybackActiveRef.current = false;
+    clearHologramAudio();
     setActiveRequest(null);
     setVoiceSession(null);
 
@@ -286,6 +312,8 @@ export function App() {
 
     const sessionId = crypto.randomUUID();
     setVoiceSession(sessionId);
+    setAudioFeatures(SILENT_AUDIO_FEATURES);
+    setHologramAudioSource("USER");
     setState("LISTENING");
     try {
       await captureRef.current?.start(selected.deviceId);
@@ -313,6 +341,7 @@ export function App() {
     if (!recording) return;
 
     setState("TRANSCRIBING");
+    clearHologramAudio();
     try {
       const result = await window.jarvis.voice.transcribe({
         sessionId,
@@ -341,6 +370,8 @@ export function App() {
 
   async function synthesizeAndPlay(sessionId: string, text: string) {
     voicePlaybackActiveRef.current = true;
+    setAudioFeatures(SILENT_AUDIO_FEATURES);
+    setHologramAudioSource("ASSISTANT");
     setState("SPEAKING");
     try {
       const result = await window.jarvis.voice.synthesize({ sessionId, text });
@@ -360,6 +391,11 @@ export function App() {
       setVoiceSession(null);
       setActiveRequest(null);
       responseTextRef.current = "";
+      if (voiceModeRef.current === "REALTIME" && realtimeRef.current?.active) {
+        setHologramAudioSource("USER");
+      } else {
+        clearHologramAudio();
+      }
       setState(voiceModeRef.current === "REALTIME" && realtimeRef.current?.active ? "LISTENING" : "IDLE");
     } catch (error) {
       if (voiceSessionIdRef.current !== sessionId) return;
@@ -368,6 +404,7 @@ export function App() {
       voicePlaybackActiveRef.current = false;
       setVoiceSession(null);
       setActiveRequest(null);
+      clearHologramAudio();
       setState("ERROR");
     }
   }
@@ -376,6 +413,7 @@ export function App() {
     captureRef.current?.cancel();
     playbackRef.current?.stop();
     voicePlaybackActiveRef.current = false;
+    clearHologramAudio();
     const sessionId = voiceSessionIdRef.current;
     const requestId = activeRequestIdRef.current;
     setVoiceSession(null);
@@ -403,6 +441,7 @@ export function App() {
       setVoiceMode(nextMode);
       setRealtimeState("DISCONNECTED");
       setLiveTranscript("");
+      clearHologramAudio();
       if (!activeRequestIdRef.current && !voicePlaybackActiveRef.current) setState("IDLE");
       return;
     }
@@ -428,6 +467,7 @@ export function App() {
       voiceModeRef.current = "PUSH_TO_TALK";
       setVoiceMode("PUSH_TO_TALK");
       setRealtimeState("DISCONNECTED");
+      clearHologramAudio();
       setVoiceError(errorText(error));
       addSystemMessage(errorText(error));
     }
@@ -470,7 +510,7 @@ export function App() {
           <span>STATE</span>
           <strong>{statusText}</strong>
         </div>
-        <HoloCore state={state} />
+        <HoloCore state={state} agent={agent} audio={{ ...audioFeatures, source: hologramAudioSource }} />
         <div className="telemetry telemetry--right">
           <span>AGENT</span>
           <strong>{agent}</strong>

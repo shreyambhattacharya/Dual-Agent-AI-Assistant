@@ -1,0 +1,89 @@
+.hologram {
+  width: min(48vh, 430px);
+  aspect-ratio: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 38px rgba(0, 174, 255, 0.18));
+  isolation: isolate;
+}
+
+.hologram__canvas { position: absolute !important; inset: 0; z-index: 1; }
+.hologram__overlay {
+  position: absolute;
+  z-index: 2;
+  inset: 39% 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 0 16px rgba(0, 196, 255, 0.72);
+}
+.hologram__label { color: #d9fbff; font-size: 13px; font-weight: 700; letter-spacing: 0.28em; margin-left: 0.28em; }
+.hologram__status { color: #79dcf8; font-size: 9px; letter-spacing: 0.18em; }
+.hologram__overlay small { color: rgba(119, 190, 211, 0.72); font-size: 7px; letter-spacing: 0.12em; }
+
+.hologram-fallback {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  contain: layout paint;
+}
+.hologram-fallback__halo,
+.hologram-fallback__orbit,
+.hologram-fallback__mesh,
+.hologram-fallback__core { position: absolute; border-radius: 50%; }
+.hologram-fallback__halo {
+  inset: 10%;
+  background: radial-gradient(circle, rgba(41, 202, 255, calc(0.08 + var(--fallback-energy) * 0.12)), transparent 68%);
+  animation: hologram-fallback-breathe 5s ease-in-out infinite;
+}
+.hologram-fallback__orbit { border: 1px solid rgba(110, 228, 255, 0.46); box-shadow: 0 0 18px rgba(0, 175, 255, 0.1); }
+.hologram-fallback__orbit::after { content: ""; position: absolute; width: 5px; height: 5px; top: 12%; left: 14%; border-radius: 50%; background: #a9f3ff; box-shadow: 0 0 12px #42d6ff; }
+.hologram-fallback__orbit--outer { inset: 5%; border-style: dashed; animation: hologram-fallback-spin var(--fallback-speed) linear infinite; }
+.hologram-fallback__orbit--middle { inset: 16%; transform: rotateX(64deg) rotateZ(23deg); animation: hologram-fallback-spin-reverse 11s linear infinite; }
+.hologram-fallback__orbit--inner { inset: 28%; border-color: rgba(165, 242, 255, 0.65); animation: hologram-fallback-spin 7s linear infinite; }
+.hologram-fallback__mesh { inset: 23%; border: 1px solid rgba(99, 222, 255, 0.28); background: repeating-radial-gradient(circle, transparent 0 14px, rgba(69, 210, 255, 0.08) 15px 16px); animation: hologram-fallback-spin-reverse 14s linear infinite; }
+.hologram-fallback__core { width: 31%; height: 31%; background: radial-gradient(circle, #bdf6ff 0 3%, rgba(30, 190, 236, 0.7) 28%, rgba(2, 21, 36, 0.96) 72%); box-shadow: 0 0 34px rgba(0, 199, 255, calc(0.24 + var(--fallback-energy) * 0.32)), inset 0 0 22px rgba(165, 245, 255, 0.3); animation: hologram-fallback-pulse 3s ease-in-out infinite; }
+.hologram-fallback--error { filter: saturate(0.6) hue-rotate(12deg); }
+.hologram-fallback--offline { opacity: 0.62; }
+
+.hologram-harness {
+  position: absolute;
+  z-index: 4;
+  top: 4px;
+  right: -228px;
+  width: 214px;
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid rgba(97, 218, 255, 0.25);
+  background: rgba(2, 12, 21, 0.92);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  color: #75b7c9;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+.hologram-harness__title { color: #c2f5ff; font-size: 9px; }
+.hologram-harness label { display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 7px; }
+.hologram-harness select { min-width: 0; color: #86d8eb; border: 1px solid rgba(98, 213, 244, 0.24); background: #061724; font-size: 8px; }
+.hologram-harness input[type="range"] { width: 100%; accent-color: #55d9ff; }
+
+@media (max-width: 1160px) {
+  .hologram-harness { top: calc(100% + 12px); right: 50%; transform: translateX(50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hologram-fallback__halo,
+  .hologram-fallback__orbit,
+  .hologram-fallback__mesh,
+  .hologram-fallback__core { animation-duration: 24s; }
+}
+
+@keyframes hologram-fallback-spin { to { transform: rotate(360deg); } }
+@keyframes hologram-fallback-spin-reverse { to { transform: rotate(-360deg); } }
+@keyframes hologram-fallback-breathe { 50% { opacity: 0.62; transform: scale(1.04); } }
+@keyframes hologram-fallback-pulse { 50% { transform: scale(calc(1 + var(--fallback-energy) * 0.12)); opacity: 0.78; } }

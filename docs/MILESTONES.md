@@ -40,16 +40,22 @@ Status: IN PROGRESS — realtime foundation implemented; live provider/Electron 
 - [x] Wake-word detector interface with an explicit no-op implementation.
 - [x] Normalized/smoothed audio-feature foundation (`rms`, `low`, `mid`, `high`).
 
-The current slice keeps turn-based file transcription and TTS as a fallback. Realtime mode is transcription-only and continues through the existing orchestrator; it does not create a second answering agent. Production wake-word activation, a Three.js hologram, and live provider verification remain outstanding. Live provider verification remains dependent on a configured `OPENAI_API_KEY` and a host where Electron launches successfully.
+The current slice keeps turn-based file transcription and TTS as a fallback. Realtime mode is transcription-only and continues through the existing orchestrator; it does not create a second answering agent. Production wake-word activation and live provider verification remain outstanding. Live provider verification remains dependent on a configured `OPENAI_API_KEY` and a host where Electron launches successfully.
 
 ## M3 - Procedural hologram
-Status: FOUNDATION ONLY
+Status: IMPLEMENTED; Vite endpoint verified, Electron launch remains host-blocked
 
-- [ ] React Three Fiber scene.
-- [ ] Idle/listening/thinking/speaking states.
+- [x] React Three Fiber scene with procedural core, energy shell, orbital rings, and particles.
+- [x] Complete public app-state mapping with idle/listening/thinking/speaking, routing, tool, permission, error, and offline behavior.
+- [x] Real user microphone and assistant playback audio reactivity.
+- [x] Smoothed target transitions without React state updates in the render loop.
 - [x] Audio feature extraction foundation (voice package + browser analyser).
 - [x] Smoothed audio feature foundation.
-- [ ] Performance fallback mode.
+- [x] FULL/REDUCED quality profiles, DPR/particle clamping, reduced-motion support.
+- [x] CSS/WebGL fallback and development-only visual harness.
+- [x] Resource cleanup for analyser contexts, media sources, object URLs, custom geometries, and particle buffers.
+
+The renderer harness is available through Vite with `?hologramHarness=1`; the endpoint responded successfully during verification, but live native Electron inspection remains blocked by the Windows 11 build 26200 Electron crash documented above. The R3F scene has no external model or post-processing asset dependency.
 
 ## M4 - Dual-agent router
 Status: CORE ROUTING FOUNDATION COMPLETE

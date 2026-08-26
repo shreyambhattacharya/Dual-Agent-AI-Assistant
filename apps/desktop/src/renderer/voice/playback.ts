@@ -1,9 +1,16 @@
 import type { SpeechAudio } from "@jarvis/voice";
+import type { AudioFeatures } from "@jarvis/voice";
+import { BrowserAudioAnalyzer } from "./realtime-analyzer";
 
 export class BrowserAudioPlayback {
   private audio: HTMLAudioElement | null = null;
   private objectUrl: string | null = null;
   private completion: { resolve: () => void; reject: (error: unknown) => void } | null = null;
+  private readonly analyzer: BrowserAudioAnalyzer;
+
+  constructor(onFeatures: (features: AudioFeatures) => void = () => {}) {
+    this.analyzer = new BrowserAudioAnalyzer(onFeatures);
+  }
 
   play(payload: SpeechAudio): Promise<void> {
     this.stop();
@@ -13,6 +20,7 @@ export class BrowserAudioPlayback {
     const audio = new Audio(objectUrl);
     this.objectUrl = objectUrl;
     this.audio = audio;
+    this.analyzer.startAudioElement(audio);
 
     return new Promise<void>((resolve, reject) => {
       this.completion = { resolve, reject };
@@ -28,6 +36,7 @@ export class BrowserAudioPlayback {
   }
 
   stop(): void {
+    this.analyzer.stop();
     const audio = this.audio;
     const objectUrl = this.objectUrl;
     const completion = this.completion;
@@ -42,6 +51,7 @@ export class BrowserAudioPlayback {
 
   private cleanup(audio: HTMLAudioElement, objectUrl: string): void {
     if (this.audio !== audio) return;
+    this.analyzer.stop();
     this.audio = null;
     this.objectUrl = null;
     this.completion = null;

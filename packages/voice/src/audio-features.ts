@@ -56,3 +56,20 @@ export function frequencyBinsToAudioFeatures(frequencyBins: readonly number[]): 
     high: average(midEnd, values.length),
   });
 }
+
+/** Combines time-domain RMS with the same frequency-band normalization used by every browser analyzer. */
+export function analyserSamplesToAudioFeatures(
+  timeDomainSamples: readonly number[],
+  frequencyBins: readonly number[],
+): AudioFeatures {
+  if (timeDomainSamples.length === 0) return frequencyBinsToAudioFeatures(frequencyBins);
+  let squaredTotal = 0;
+  timeDomainSamples.forEach((sample) => {
+    const centered = (sample - 128) / 128;
+    squaredTotal += centered * centered;
+  });
+  return {
+    ...frequencyBinsToAudioFeatures(frequencyBins),
+    rms: clamp(Math.sqrt(squaredTotal / timeDomainSamples.length)),
+  };
+}

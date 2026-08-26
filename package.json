@@ -10,7 +10,7 @@
   "scripts": {
     "build": "npm run build -w @jarvis/core && npm run build -w @jarvis/voice && npm run build -w @jarvis/agents && npm run build -w @jarvis/desktop",
     "build:core": "npm run build -w @jarvis/core",
-    "test": "npm run test -w @jarvis/core && npm run test -w @jarvis/voice && npm run test -w @jarvis/agents",
+    "test": "npm run test -w @jarvis/core && npm run test -w @jarvis/voice && npm run test -w @jarvis/agents && npm run test -w @jarvis/desktop",
     "typecheck": "npm run typecheck -w @jarvis/core && npm run typecheck -w @jarvis/voice && npm run typecheck -w @jarvis/agents && npm run typecheck -w @jarvis/desktop",
     "dev": "npm run build -w @jarvis/core && npm run build -w @jarvis/voice && npm run build -w @jarvis/agents && npm run dev -w @jarvis/desktop"
   },
